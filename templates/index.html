@@ -1,0 +1,25 @@
+
+{% extends "base.html" %}
+
+{% block header %}Image Analyzer{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Upload an image and get AI-powered analysis using Claude 3.5 Sonnet</h5>
+        
+        <form action="/analyze" method="post" enctype="multipart/form-data" class="mt-4">
+            <div class="mb-3">
+                <label for="file" class="form-label">Choose an image (JPG, JPEG, PNG)</label>
+                <input type="file" class="form-control" id="file" name="file" accept=".jpg,.jpeg,.png" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Analyze Image</button>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    Please upload an image to analyze.
+</div>
+{% endblock %}

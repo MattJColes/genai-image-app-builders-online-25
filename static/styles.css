@@ -1,0 +1,16 @@
+
+/* Additional custom styles can be added here */
+.image-container {
+    max-height: 500px;
+    overflow: hidden;
+}
+
+.image-container img {
+    max-width: 100%;
+    height: auto;
+}
+
+.analysis-container {
+    max-height: 600px;
+    overflow-y: auto;
+}

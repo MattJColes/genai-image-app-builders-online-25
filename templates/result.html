@@ -1,0 +1,31 @@
+
+{% extends "base.html" %}
+
+{% block header %}Image Analysis Results{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">Uploaded Image</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ image_data }}" class="img-fluid" alt="Uploaded image">
+            </div>
+        </div>
+        <a href="/" class="btn btn-secondary">Upload Another Image</a>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">Image Analysis</h5>
+            </div>
+            <div class="card-body">
+                {{ description | safe }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
