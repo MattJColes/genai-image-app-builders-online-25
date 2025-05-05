@@ -65,6 +65,11 @@ async def analyze_image(request: Request, file: UploadFile = File(...)):
             }
         )
 
+@app.get("/health", response_class=HTMLResponse)
+async def health_check():
+    """Health check endpoint for monitoring application status"""
+    return HTMLResponse(content="OK", status_code=200)
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 8080))
