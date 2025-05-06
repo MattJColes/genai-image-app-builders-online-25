@@ -10,7 +10,7 @@ from bedrock_helper import get_image_description
 
 app = FastAPI(
     title="Image Analyzer",
-    description="An application that analyzes images using Amazon Bedrock's Claude 3.5 Sonnet model."
+    description="An application that analyzes images using Amazon Bedrock's Nova model."
 )
 
 # Set up templates and static files
@@ -27,7 +27,7 @@ async def index(request: Request):
 
 @app.post("/analyze", response_class=HTMLResponse)
 async def analyze_image(request: Request, file: UploadFile = File(...)):
-    """Process the uploaded image and get analysis from Claude 3.5 Sonnet"""
+    """Process the uploaded image and get analysis from Amazon Bedrock Nova"""
     try:
         # Read and process the image
         contents = await file.read()
