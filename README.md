@@ -1,7 +1,7 @@
 
 # Image Analyzer App
 
-A FastAPI application that analyzes images using Amazon Bedrock's Claude 3.5 Sonnet model.
+A FastAPI application that analyzes images using Amazon Bedrock's Nova Pro model.
 
 ## Features
 
