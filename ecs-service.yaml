@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Bedrock Playground ECS Service'
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC where the ECS service will be deployed
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets where the ECS service will be deployed
+
+  ECRImageURI:
+    Type: String
+    Description: URI of the ECR image to deploy
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: bedrock-playground-cluster
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+
+  BedrockPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: BedrockAccessPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - bedrock:*
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+              - bedrock:CreateModelCustomizationJob
+              - bedrock:GetFoundationModel
+              - bedrock:ListFoundationModels
+              - bedrock:GetModelCustomizationJob
+              - bedrock:ListModelCustomizationJobs
+              - bedrock:StopModelCustomizationJob
+              - bedrock:CreateProvisionedModelThroughput
+              - bedrock:GetProvisionedModelThroughput
+              - bedrock:ListProvisionedModelThroughputs
+              - bedrock:UpdateProvisionedModelThroughput
+              - bedrock:DeleteProvisionedModelThroughput
+              - bedrock:TagResource
+              - bedrock:UntagResource
+              - bedrock:ListTagsForResource
+              - bedrock:CreateAgent
+              - bedrock:GetAgent
+              - bedrock:ListAgents
+              - bedrock:DeleteAgent
+              - bedrock:UpdateAgent
+              - bedrock:CreateAgentActionGroup
+              - bedrock:GetAgentActionGroup
+              - bedrock:ListAgentActionGroups
+              - bedrock:DeleteAgentActionGroup
+              - bedrock:UpdateAgentActionGroup
+              - bedrock:CreateAgentAlias
+              - bedrock:GetAgentAlias
+              - bedrock:ListAgentAliases
+              - bedrock:DeleteAgentAlias
+              - bedrock:UpdateAgentAlias
+              - bedrock:InvokeAgent
+              - bedrock:CreateKnowledgeBase
+              - bedrock:GetKnowledgeBase
+              - bedrock:ListKnowledgeBases
+              - bedrock:DeleteKnowledgeBase
+              - bedrock:UpdateKnowledgeBase
+              - bedrock:CreateDataSource
+              - bedrock:GetDataSource
+              - bedrock:ListDataSources
+              - bedrock:DeleteDataSource
+              - bedrock:UpdateDataSource
+              - bedrock:StartIngestionJob
+              - bedrock:GetIngestionJob
+              - bedrock:ListIngestionJobs
+              - bedrock:StopIngestionJob
+              - bedrock:RetrieveAndGenerate
+            Resource: '*'
+      Roles:
+        - !Ref TaskRole
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/bedrock-playground
+      RetentionInDays: 30
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Bedrock Playground ECS service
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: bedrock-playground
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '1024'
+      Memory: '2048'
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: bedrock-playground
+          Image: !Ref ECRImageURI
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              HostPort: 8080
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  # ECSService removed to avoid conflict with UpdatedECSService
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: bedrock-playground-lb
+      Scheme: internet-facing
+      Subnets: !Ref SubnetIds
+      SecurityGroups:
+        - !Ref LoadBalancerSG
+
+  LoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Bedrock Playground load balancer
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: bedrock-playground-tg
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VpcId
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  UpdatedECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: bedrock-playground-service
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref SecurityGroup
+          Subnets: !Ref SubnetIds
+      LoadBalancers:
+        - ContainerName: bedrock-playground
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
+    DependsOn: Listener
+
+Outputs:
+  LoadBalancerDNS:
+    Description: DNS name of the load balancer
+    Value: !GetAtt LoadBalancer.DNSName
+  ServiceURL:
+    Description: URL of the Bedrock Playground service
+    Value: !Sub http://${LoadBalancer.DNSName}
